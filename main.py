@@ -77,15 +77,53 @@ class ConvNet(nn.Module):
         return output
 
 
+
+
 class Net(nn.Module):
-    '''
-    Build the best MNIST classifier.
-    '''
+
     def __init__(self):
         super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=(5,5), stride=1, padding=2, padding_mode = 'reflect')
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=(5,5), stride=1, padding=2, padding_mode = 'reflect')
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=(3,3), stride=1, padding=2, padding_mode = 'reflect')
+        self.conv4 = nn.Conv2d(in_channels=64, out_channels=32, kernel_size=(3,3), stride=1, padding=2, padding_mode = 'reflect')
+        
+        self.dropout1 = nn.Dropout2d(0.5)
+        self.dropout2 = nn.Dropout2d(0.5)
+        self.fc1 = nn.Linear(128, 96)
+        self.bn1 = nn.BatchNorm1d(num_features=96)
+        self.fc2 = nn.Linear(96, 10)
 
     def forward(self, x):
-        return x
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout1(x)
+
+        x = self.conv2(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 4)
+        x = self.dropout2(x)
+
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = F.avg_pool2d(x, 2)
+        x = self.dropout2(x)
+        
+        x = self.conv4(x)
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        x = self.dropout2(x)
+
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        x = self.bn1(x)
+        
+        x = F.relu(x)
+        x = self.fc2(x)
+
+        output = F.log_softmax(x, dim=1)
+        return output
 
 
 def train(args, model, device, train_loader, optimizer, epoch):
@@ -170,7 +208,7 @@ def main():
         assert os.path.exists(args.load_model)
 
         # Set the test model
-        model = fcNet().to(device)
+        model = Net().to(device)
         model.load_state_dict(torch.load(args.load_model))
 
         test_dataset = datasets.MNIST('../data', train=False,
@@ -210,7 +248,7 @@ def main():
     )
 
     # Load your model [fcNet, ConvNet, Net]
-    model = fcNet().to(device)
+    model = Net().to(device)
 
     # Try different optimzers here [Adam, SGD, RMSprop]
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
